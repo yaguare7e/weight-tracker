@@ -3,8 +3,6 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 
-const KG_TO_LBS = 2.20462
-
 function fmtAxisDate(dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
@@ -15,20 +13,16 @@ function fmtTooltipDate(dateStr) {
   return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-export default function WeightChart({ entries, unit, goalKg, dark }) {
+export default function WeightChart({ entries, goalKg, dark }) {
   const data = [...entries]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map(e => ({
       rawDate: e.date,
-      label: fmtAxisDate(e.date),
-      weight: parseFloat(
-        (unit === 'lbs' ? e.weightKg * KG_TO_LBS : e.weightKg).toFixed(1)
-      ),
+      label:   fmtAxisDate(e.date),
+      weight:  parseFloat(e.weightKg.toFixed(1)),
     }))
 
-  const goalVal = goalKg != null
-    ? parseFloat((unit === 'lbs' ? goalKg * KG_TO_LBS : goalKg).toFixed(1))
-    : null
+  const goalVal = goalKg != null ? parseFloat(goalKg.toFixed(1)) : null
 
   const weights = data.map(d => d.weight)
   const allVals = goalVal !== null ? [...weights, goalVal] : weights
@@ -55,11 +49,11 @@ export default function WeightChart({ entries, unit, goalKg, dark }) {
         <div className="flex items-center gap-2">
           {goalVal !== null && (
             <span className="text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg">
-              Meta: {goalVal} {unit}
+              Meta: {goalVal} kg
             </span>
           )}
           <span className="text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg">
-            {unit}
+            kg
           </span>
         </div>
       </div>
@@ -89,7 +83,7 @@ export default function WeightChart({ entries, unit, goalKg, dark }) {
               width={44}
               tickFormatter={v => v.toFixed(1)}
             />
-            <Tooltip content={<CustomTooltip unit={unit} dark={dark} />} />
+            <Tooltip content={<CustomTooltip dark={dark} />} />
             {goalVal !== null && (
               <ReferenceLine
                 y={goalVal}
@@ -113,21 +107,19 @@ export default function WeightChart({ entries, unit, goalKg, dark }) {
   )
 }
 
-function CustomTooltip({ active, payload, unit, dark }) {
+function CustomTooltip({ active, payload, dark }) {
   if (!active || !payload?.length) return null
   const point = payload[0]
   return (
     <div className={`rounded-xl shadow-lg px-3.5 py-2.5 border ${
-      dark
-        ? 'bg-slate-700 border-slate-600'
-        : 'bg-white border-slate-200'
+      dark ? 'bg-slate-700 border-slate-600' : 'bg-white border-slate-200'
     }`}>
       <p className="text-xs text-slate-400 mb-0.5">
         {fmtTooltipDate(point.payload.rawDate)}
       </p>
       <p className={`text-base font-bold ${dark ? 'text-slate-100' : 'text-slate-900'}`}>
         {point.value}{' '}
-        <span className={`text-sm font-medium ${dark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</span>
+        <span className={`text-sm font-medium ${dark ? 'text-slate-400' : 'text-slate-500'}`}>kg</span>
       </p>
     </div>
   )

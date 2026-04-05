@@ -14,7 +14,6 @@ import { useReminders } from './hooks/useReminders.js'
 import { isFirebaseConfigured } from './lib/firebase.js'
 
 export default function App() {
-  const [unit, setUnit] = useState('kg')
   const [showSettings, setShowSettings]   = useState(false)
   const [showReminders, setShowReminders] = useState(false)
   const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark, syncKey, setSyncKey } = useSettings()
@@ -26,8 +25,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
       <Header
-        unit={unit}
-        onUnitChange={setUnit}
         dark={dark}
         onToggleDark={() => setDark(!dark)}
         onOpenSettings={() => setShowSettings(true)}
@@ -48,16 +45,16 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 pt-6 space-y-5">
 
-        <WeightForm onAdd={addEntry} unit={unit} />
+        <WeightForm onAdd={addEntry} />
 
         {loading ? (
           <Spinner />
         ) : hasData ? (
           <>
-            <StatsCards entries={entries} unit={unit} goalKg={goalKg} heightCm={heightCm} />
-            <WeightChart entries={entries} unit={unit} goalKg={goalKg} dark={dark} />
-            <MonthlyChart entries={entries} unit={unit} goalKg={goalKg} dark={dark} />
-            <WeightHistory entries={entries} unit={unit} onDelete={removeEntry} onUpdate={updateEntry} />
+            <StatsCards entries={entries} goalKg={goalKg} heightCm={heightCm} />
+            <WeightChart entries={entries} goalKg={goalKg} dark={dark} />
+            <MonthlyChart entries={entries} goalKg={goalKg} dark={dark} />
+            <WeightHistory entries={entries} onDelete={removeEntry} onUpdate={updateEntry} />
           </>
         ) : (
           <EmptyState />
@@ -71,7 +68,6 @@ export default function App() {
 
       {showSettings && (
         <SettingsPanel
-          unit={unit}
           goalKg={goalKg}
           heightCm={heightCm}
           onSaveGoal={setGoalKg}

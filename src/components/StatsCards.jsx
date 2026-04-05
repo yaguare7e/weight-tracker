@@ -1,13 +1,7 @@
 import { Scale, Activity, TrendingDown, TrendingUp, Minus, Target, Heart, CalendarDays } from 'lucide-react'
 
-const KG_TO_LBS = 2.20462
-
-function toUnit(kg, unit) {
-  return unit === 'lbs' ? kg * KG_TO_LBS : kg
-}
-
-function fmt(value, unit) {
-  return `${value.toFixed(1)} ${unit}`
+function fmt(kg) {
+  return `${kg.toFixed(1)} kg`
 }
 
 function fmtDate(dateStr) {
@@ -15,35 +9,32 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function StatsCards({ entries, unit, goalKg, heightCm }) {
+export default function StatsCards({ entries, goalKg, heightCm }) {
   const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date))
 
   const current  = sorted[0]
   const initial  = sorted[sorted.length - 1]
   const isSingle = sorted.length === 1
 
-  const currentW = toUnit(current.weightKg, unit)
-  const initialW = toUnit(initial.weightKg, unit)
-  const change   = toUnit(current.weightKg - initial.weightKg, unit)
-  const isLoss   = change < -0.05
-  const isGain   = change > 0.05
+  const change = current.weightKg - initial.weightKg
+  const isLoss = change < -0.05
+  const isGain = change > 0.05
 
   // Monthly average
   const currentMonth = new Date().toISOString().slice(0, 7)
   const thisMonth    = sorted.filter(e => e.date.startsWith(currentMonth))
   const monthAvg     = thisMonth.length > 0
-    ? toUnit(thisMonth.reduce((s, e) => s + e.weightKg, 0) / thisMonth.length, unit)
+    ? thisMonth.reduce((s, e) => s + e.weightKg, 0) / thisMonth.length
     : null
   const monthName    = new Date().toLocaleDateString('es-ES', { month: 'long' })
 
   // BMI
-  const bmi = heightCm ? current.weightKg / Math.pow(heightCm / 100, 2) : null
+  const bmi      = heightCm ? current.weightKg / Math.pow(heightCm / 100, 2) : null
   const bmiCat   = !bmi ? '' : bmi < 18.5 ? 'Bajo peso' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Sobrepeso' : 'Obesidad'
   const bmiColor = !bmi ? 'slate' : bmi < 18.5 ? 'amber' : bmi < 25 ? 'emerald' : bmi < 30 ? 'amber' : 'rose'
 
   // Goal
-  const goalDisp  = goalKg != null ? toUnit(goalKg, unit) : null
-  const remaining = goalKg != null ? toUnit(current.weightKg - goalKg, unit) : null
+  const remaining = goalKg != null ? current.weightKg - goalKg : null
   const isAtGoal  = remaining !== null && Math.abs(remaining) <= 0.1
 
   const showSecondary = bmi !== null || goalKg !== null
@@ -53,14 +44,14 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Peso Actual"
-          value={fmt(currentW, unit)}
+          value={fmt(current.weightKg)}
           sub={`Último: ${fmtDate(current.date)}`}
           icon={<Scale className="h-4.5 w-4.5" />}
           color="blue"
         />
         <StatCard
           label="Peso Inicial"
-          value={fmt(initialW, unit)}
+          value={fmt(initial.weightKg)}
           sub={`Inicio: ${fmtDate(initial.date)}`}
           icon={<Activity className="h-4.5 w-4.5" />}
           color="slate"
@@ -70,7 +61,7 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
           value={
             isSingle
               ? '—'
-              : `${isGain ? '+' : ''}${change.toFixed(1)} ${unit}`
+              : `${isGain ? '+' : ''}${change.toFixed(1)} kg`
           }
           sub={isSingle ? 'Agrega más registros' : isLoss ? 'Pérdida de peso' : isGain ? 'Ganancia de peso' : 'Sin cambio'}
           icon={isLoss ? <TrendingDown className="h-4.5 w-4.5" /> : isGain ? <TrendingUp className="h-4.5 w-4.5" /> : <Minus className="h-4.5 w-4.5" />}
@@ -78,7 +69,7 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
         />
         <StatCard
           label="Promedio del Mes"
-          value={monthAvg !== null ? fmt(monthAvg, unit) : '—'}
+          value={monthAvg !== null ? fmt(monthAvg) : '—'}
           sub={monthAvg !== null ? `${thisMonth.length} registro${thisMonth.length !== 1 ? 's' : ''} en ${monthName}` : 'Sin registros este mes'}
           icon={<CalendarDays className="h-4.5 w-4.5" />}
           color="violet"
@@ -99,8 +90,8 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
           {goalKg !== null && (
             <StatCard
               label="Peso Objetivo"
-              value={isAtGoal ? '¡Logrado!' : `Faltan ${Math.abs(remaining).toFixed(1)} ${unit}`}
-              sub={`Meta: ${goalDisp.toFixed(1)} ${unit}`}
+              value={isAtGoal ? '¡Logrado!' : `Faltan ${Math.abs(remaining).toFixed(1)} kg`}
+              sub={`Meta: ${goalKg.toFixed(1)} kg`}
               icon={<Target className="h-4.5 w-4.5" />}
               color={isAtGoal ? 'emerald' : 'blue'}
               badge={isAtGoal ? '✓' : null}

@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
-export default function WeightForm({ onAdd, unit }) {
+export default function WeightForm({ onAdd }) {
   const [weight, setWeight] = useState('')
   const [date, setDate] = useState(todayISO())
   const [saving, setSaving] = useState(false)
@@ -17,8 +17,7 @@ export default function WeightForm({ onAdd, unit }) {
       setError('Ingresa un peso válido.')
       return
     }
-    const maxKg = unit === 'lbs' ? 1100 : 500
-    if (val > maxKg) {
+    if (val > 500) {
       setError('El peso ingresado parece demasiado alto.')
       return
     }
@@ -30,8 +29,7 @@ export default function WeightForm({ onAdd, unit }) {
     setError('')
     setSaving(true)
     try {
-      const weightKg = unit === 'lbs' ? val / 2.20462 : val
-      await onAdd({ weightKg, date })
+      await onAdd({ weightKg: val, date })
       setWeight('')
       setDate(todayISO())
     } catch (err) {
@@ -59,7 +57,7 @@ export default function WeightForm({ onAdd, unit }) {
           {/* Weight input */}
           <div className="flex-1 min-w-0 overflow-hidden">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-              Peso ({unit})
+              Peso (kg)
             </label>
             <div className="relative">
               <input
@@ -68,7 +66,7 @@ export default function WeightForm({ onAdd, unit }) {
                 min="1"
                 value={weight}
                 onChange={(e) => { setWeight(e.target.value); setError('') }}
-                placeholder={unit === 'kg' ? '70.5' : '155.0'}
+                placeholder="70.5"
                 className="w-full px-3 py-2.5 pr-12 border border-slate-200 dark:border-slate-600 rounded-xl
                            text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
                            placeholder:text-slate-300 dark:placeholder:text-slate-500
@@ -76,7 +74,7 @@ export default function WeightForm({ onAdd, unit }) {
                            transition-all text-sm"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">
-                {unit}
+                kg
               </span>
             </div>
           </div>

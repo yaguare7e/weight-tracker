@@ -1,12 +1,6 @@
 import { useState } from 'react'
 import { Trash2, ChevronDown, ChevronUp, Pencil, Check, X, Download } from 'lucide-react'
 
-const KG_TO_LBS = 2.20462
-
-function toUnit(kg, unit) {
-  return unit === 'lbs' ? kg * KG_TO_LBS : kg
-}
-
 function fmtDate(dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   return d.toLocaleDateString('es-ES', {
@@ -18,14 +12,11 @@ function todayISO() {
   return new Date().toISOString().split('T')[0]
 }
 
-function exportCSV(entries, unit) {
+function exportCSV(entries) {
   const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date))
-  const header = ['Fecha', `Peso (${unit})`, 'Peso (kg)']
-  const rows = sorted.map(e => {
-    const w = unit === 'lbs' ? (e.weightKg * KG_TO_LBS).toFixed(1) : e.weightKg.toFixed(2)
-    return [e.date, w, e.weightKg.toFixed(4)]
-  })
-  const csv = [header, ...rows].map(r => r.join(',')).join('\n')
+  const header = ['Fecha', 'Peso (kg)']
+  const rows   = sorted.map(e => [e.date, e.weightKg.toFixed(2)])
+  const csv    = [header, ...rows].map(r => r.join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -35,7 +26,7 @@ function exportCSV(entries, unit) {
   URL.revokeObjectURL(url)
 }
 
-export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
+export default function WeightHistory({ entries, onDelete, onUpdate }) {
   const [confirmId, setConfirmId] = useState(null)
   const [showAll, setShowAll]     = useState(false)
   const [editId, setEditId]       = useState(null)
@@ -57,7 +48,7 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
 
   const startEdit = (entry) => {
     setEditId(entry.id)
-    setEditWeight(toUnit(entry.weightKg, unit).toFixed(1))
+    setEditWeight(entry.weightKg.toFixed(1))
     setEditDate(entry.date)
     setConfirmId(null)
   }
@@ -65,8 +56,7 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
   const saveEdit = async (id) => {
     const val = parseFloat(editWeight)
     if (isNaN(val) || val <= 0) return
-    const weightKg = unit === 'lbs' ? val / KG_TO_LBS : val
-    await onUpdate({ id, weightKg, date: editDate })
+    await onUpdate({ id, weightKg: val, date: editDate })
     setEditId(null)
   }
 
@@ -82,7 +72,7 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
           </p>
         </div>
         <button
-          onClick={() => exportCSV(entries, unit)}
+          onClick={() => exportCSV(entries)}
           className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400
                      hover:text-blue-600 dark:hover:text-blue-400 px-2.5 py-1.5 rounded-lg
                      hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -105,9 +95,9 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
       {/* Rows */}
       <div className="divide-y divide-slate-100 dark:divide-slate-700">
         {visible.map((entry, idx) => {
-          const weight   = toUnit(entry.weightKg, unit)
-          const prev     = sorted[idx + 1]
-          const change   = prev ? weight - toUnit(prev.weightKg, unit) : null
+          const weight = entry.weightKg
+          const prev   = sorted[idx + 1]
+          const change = prev ? weight - prev.weightKg : null
           const isLatest = idx === 0
 
           // ── Edit mode ──────────────────────────────────────────────────
@@ -129,7 +119,7 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
                                  text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
                                  focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500">{unit}</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500">kg</span>
                   </div>
                   <input
                     type="date"
@@ -186,7 +176,7 @@ export default function WeightHistory({ entries, unit, onDelete, onUpdate }) {
               {/* Right — weight + change + actions */}
               <div className="flex items-center gap-3 flex-shrink-0">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
-                  {weight.toFixed(1)}&nbsp;{unit}
+                  {weight.toFixed(1)}&nbsp;kg
                 </span>
 
                 {change !== null && (

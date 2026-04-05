@@ -3,9 +3,7 @@ import {
   Tooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
 
-const KG_TO_LBS = 2.20462
-
-function buildMonthlyData(entries, unit) {
+function buildMonthlyData(entries) {
   const map = {}
   entries.forEach(e => {
     const month = e.date.slice(0, 7) // YYYY-MM
@@ -16,8 +14,7 @@ function buildMonthlyData(entries, unit) {
   return Object.entries(map)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, weights]) => {
-      const avgKg  = weights.reduce((s, w) => s + w, 0) / weights.length
-      const avg    = parseFloat((unit === 'lbs' ? avgKg * KG_TO_LBS : avgKg).toFixed(1))
+      const avg    = parseFloat((weights.reduce((s, w) => s + w, 0) / weights.length).toFixed(1))
       const [y, m] = month.split('-')
       const label  = new Date(y, parseInt(m) - 1, 1)
         .toLocaleDateString('es-ES', { month: 'short', year: '2-digit' })
@@ -31,8 +28,8 @@ function fmtMonthFull(monthStr) {
     .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
 }
 
-export default function MonthlyChart({ entries, unit, goalKg, dark }) {
-  const data = buildMonthlyData(entries, unit)
+export default function MonthlyChart({ entries, goalKg, dark }) {
+  const data = buildMonthlyData(entries)
   if (data.length < 2) return null
 
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -44,9 +41,7 @@ export default function MonthlyChart({ entries, unit, goalKg, dark }) {
   const yMin = parseFloat((minA - pad).toFixed(1))
   const yMax = parseFloat((maxA + pad).toFixed(1))
 
-  const goalVal = goalKg != null
-    ? parseFloat((unit === 'lbs' ? goalKg * KG_TO_LBS : goalKg).toFixed(1))
-    : null
+  const goalVal = goalKg != null ? parseFloat(goalKg.toFixed(1)) : null
 
   const gridColor  = dark ? '#1e293b' : '#f1f5f9'
   const axisColor  = dark ? '#475569' : '#94a3b8'
@@ -62,7 +57,7 @@ export default function MonthlyChart({ entries, unit, goalKg, dark }) {
           </p>
         </div>
         <span className="text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg">
-          {unit}
+          kg
         </span>
       </div>
 
@@ -84,7 +79,7 @@ export default function MonthlyChart({ entries, unit, goalKg, dark }) {
               width={44}
               tickFormatter={v => v.toFixed(1)}
             />
-            <Tooltip content={<CustomTooltip unit={unit} dark={dark} />} />
+            <Tooltip content={<CustomTooltip dark={dark} />} />
             {goalVal !== null && (
               <ReferenceLine
                 y={goalVal}
@@ -108,7 +103,7 @@ export default function MonthlyChart({ entries, unit, goalKg, dark }) {
   )
 }
 
-function CustomTooltip({ active, payload, unit, dark }) {
+function CustomTooltip({ active, payload, dark }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
@@ -119,7 +114,7 @@ function CustomTooltip({ active, payload, unit, dark }) {
         {fmtMonthFull(d.month)}
       </p>
       <p className={`text-base font-bold ${dark ? 'text-slate-100' : 'text-slate-900'}`}>
-        {d.avg} <span className={`text-sm font-medium ${dark ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</span>
+        {d.avg} <span className={`text-sm font-medium ${dark ? 'text-slate-400' : 'text-slate-500'}`}>kg</span>
       </p>
       <p className={`text-xs mt-0.5 ${dark ? 'text-slate-500' : 'text-slate-400'}`}>
         {d.count} registro{d.count !== 1 ? 's' : ''}

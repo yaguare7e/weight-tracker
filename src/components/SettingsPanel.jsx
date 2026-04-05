@@ -2,17 +2,11 @@ import { useState } from 'react'
 import { X, Target, Ruler, Link2, Copy, Check, Bell, ChevronRight } from 'lucide-react'
 import { isFirebaseConfigured } from '../lib/firebase'
 
-const KG_TO_LBS = 2.20462
-
 export default function SettingsPanel({
-  unit, goalKg, heightCm, onSaveGoal, onSaveHeight,
+  goalKg, heightCm, onSaveGoal, onSaveHeight,
   syncKey, onSaveSyncKey, onClose, onOpenReminders,
 }) {
-  const [goalVal, setGoalVal] = useState(
-    goalKg != null
-      ? (unit === 'lbs' ? (goalKg * KG_TO_LBS).toFixed(1) : goalKg.toFixed(1))
-      : ''
-  )
+  const [goalVal, setGoalVal] = useState(goalKg != null ? goalKg.toFixed(1) : '')
   const [heightVal, setHeightVal] = useState(heightCm != null ? String(heightCm) : '')
   const [importKey, setImportKey] = useState('')
   const [copied, setCopied] = useState(false)
@@ -27,7 +21,7 @@ export default function SettingsPanel({
     // Goal
     const gv = parseFloat(goalVal)
     if (!goalVal || isNaN(gv) || gv <= 0) onSaveGoal(null)
-    else onSaveGoal(unit === 'lbs' ? gv / KG_TO_LBS : gv)
+    else onSaveGoal(gv)
 
     // Height
     const hv = parseFloat(heightVal)
@@ -107,14 +101,14 @@ export default function SettingsPanel({
               <Target className="h-4 w-4 text-emerald-500" />
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Peso Objetivo</span>
             </div>
-            <label className={labelClass}>Peso objetivo ({unit})</label>
+            <label className={labelClass}>Peso objetivo (kg)</label>
             <div className="relative">
               <input
                 type="number" step="0.1" min="1"
                 value={goalVal} onChange={e => setGoalVal(e.target.value)}
-                placeholder={unit === 'kg' ? '70.0' : '154.0'} className={inputClass}
+                placeholder="70.0" className={inputClass}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">{unit}</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">kg</span>
             </div>
             <p className="text-xs mt-1 text-slate-400 dark:text-slate-500">Se mostrará como línea de referencia en el gráfico. Deja vacío para quitar.</p>
           </div>
