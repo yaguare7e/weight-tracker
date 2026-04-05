@@ -1,0 +1,24 @@
+{
+  "name": "WeightTracker",
+  "short_name": "WeightTracker",
+  "description": "Seguimiento de peso corporal",
+  "start_url": "/weight-tracker/",
+  "scope": "/weight-tracker/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/weight-tracker/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/weight-tracker/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

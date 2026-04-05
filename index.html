@@ -4,7 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Aplicación de seguimiento de peso corporal" />
-    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Adaptive theme color -->
+    <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+
+    <!-- Favicon — SVG with built-in dark mode support -->
+    <link rel="icon" type="image/svg+xml" href="/weight-tracker/favicon.svg" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/weight-tracker/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="WeightTracker" />
+    <link rel="apple-touch-icon" href="/weight-tracker/favicon.svg" />
+
     <title>WeightTracker — Seguimiento de Peso</title>
   </head>
   <body class="bg-slate-50">
