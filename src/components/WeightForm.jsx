@@ -45,70 +45,73 @@ export default function WeightForm({ onAdd, unit }) {
         Registrar nuevo peso
       </h2>
 
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
 
-        {/* Weight input */}
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-            Peso ({unit})
-          </label>
-          <div className="relative">
-            <input
-              type="number"
-              step="0.1"
-              min="1"
-              value={weight}
-              onChange={(e) => { setWeight(e.target.value); setError('') }}
-              placeholder={unit === 'kg' ? '70.5' : '155.0'}
-              className="w-full px-3 py-2.5 pr-12 border border-slate-200 dark:border-slate-600 rounded-xl
-                         text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
-                         placeholder:text-slate-300 dark:placeholder:text-slate-500
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                         transition-all text-sm"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">
-              {unit}
-            </span>
+        {/* Weight + Date side by side on all screen sizes */}
+        <div className="flex gap-3">
+
+          {/* Weight input */}
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              Peso ({unit})
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="0.1"
+                min="1"
+                value={weight}
+                onChange={(e) => { setWeight(e.target.value); setError('') }}
+                placeholder={unit === 'kg' ? '70.5' : '155.0'}
+                className="w-full px-3 py-2.5 pr-12 border border-slate-200 dark:border-slate-600 rounded-xl
+                           text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
+                           placeholder:text-slate-300 dark:placeholder:text-slate-500
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           transition-all text-sm"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">
+                {unit}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Date input */}
-        <div className="sm:w-44">
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
-            Fecha
-          </label>
-          <input
-            type="date"
-            value={date}
-            max={todayISO()}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl
-                       text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                       transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
-          />
+          {/* Date input */}
+          <div className="w-36 sm:w-44 flex-shrink-0">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              Fecha
+            </label>
+            <input
+              type="date"
+              value={date}
+              max={todayISO()}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl
+                         text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
+            />
+          </div>
+
         </div>
 
         {/* Submit */}
-        <div className="sm:self-end">
-          <button
-            type="submit"
-            disabled={saving || !weight}
-            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium
-                       text-sm hover:bg-blue-700 active:scale-95 transition-all duration-150
-                       disabled:opacity-50 disabled:cursor-not-allowed flex items-center
-                       justify-center gap-2 min-w-[120px]"
-          >
-            {saving ? (
-              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Plus className="h-4 w-4" />
-                Registrar
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={saving || !weight}
+          className="w-full px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium
+                     text-sm hover:bg-blue-700 active:scale-95 transition-all duration-150
+                     disabled:opacity-50 disabled:cursor-not-allowed flex items-center
+                     justify-center gap-2"
+        >
+          {saving ? (
+            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <Plus className="h-4 w-4" />
+              Registrar
+            </>
+          )}
+        </button>
 
       </form>
 
