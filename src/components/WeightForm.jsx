@@ -29,11 +29,17 @@ export default function WeightForm({ onAdd, unit }) {
 
     setError('')
     setSaving(true)
-    const weightKg = unit === 'lbs' ? val / 2.20462 : val
-    await onAdd({ weightKg, date })
-    setWeight('')
-    setDate(todayISO())
-    setSaving(false)
+    try {
+      const weightKg = unit === 'lbs' ? val / 2.20462 : val
+      await onAdd({ weightKg, date })
+      setWeight('')
+      setDate(todayISO())
+    } catch (err) {
+      console.error('[WeightForm] Error saving entry:', err)
+      setError('Error al guardar. Intentá de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
