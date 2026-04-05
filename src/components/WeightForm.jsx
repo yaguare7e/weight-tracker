@@ -37,7 +37,7 @@ export default function WeightForm({ onAdd, unit }) {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 transition-colors duration-200">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 overflow-hidden transition-colors duration-200">
       <h2 className="font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2 text-sm">
         <span className="flex items-center justify-center w-5 h-5 bg-blue-600 rounded-full">
           <Plus className="h-3 w-3 text-white" />
@@ -85,10 +85,10 @@ export default function WeightForm({ onAdd, unit }) {
               value={date}
               max={todayISO()}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl
+              className="w-full max-w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl
                          text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                         transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                         transition-all text-sm appearance-none [color-scheme:light] dark:[color-scheme:dark]"
             />
           </div>
 
