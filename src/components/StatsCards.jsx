@@ -1,4 +1,4 @@
-import { Scale, Activity, TrendingDown, TrendingUp, Minus, BarChart3, Target, Heart, CalendarDays } from 'lucide-react'
+import { Scale, Activity, TrendingDown, TrendingUp, Minus, Target, Heart, CalendarDays } from 'lucide-react'
 
 const KG_TO_LBS = 2.20462
 
@@ -28,11 +28,6 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
   const isLoss   = change < -0.05
   const isGain   = change > 0.05
 
-  const available  = sorted.slice(0, Math.min(4, sorted.length))
-  const avgKg      = available.reduce((s, e) => s + e.weightKg, 0) / available.length
-  const movAvg     = toUnit(avgKg, unit)
-  const hasFullAvg = sorted.length >= 4
-
   // Monthly average
   const currentMonth = new Date().toISOString().slice(0, 7)
   const thisMonth    = sorted.filter(e => e.date.startsWith(currentMonth))
@@ -51,7 +46,7 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
   const remaining = goalKg != null ? toUnit(current.weightKg - goalKg, unit) : null
   const isAtGoal  = remaining !== null && Math.abs(remaining) <= 0.1
 
-  const showSecondary = bmi !== null || goalKg !== null || monthAvg !== null
+  const showSecondary = bmi !== null || goalKg !== null
 
   return (
     <>
@@ -82,26 +77,16 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
           color={isLoss ? 'emerald' : isGain ? 'rose' : 'slate'}
         />
         <StatCard
-          label="Promedio (4 últ.)"
-          value={fmt(movAvg, unit)}
-          sub={hasFullAvg ? 'Últimas 4 mediciones' : `${available.length} de 4 disponibles`}
-          icon={<BarChart3 className="h-4.5 w-4.5" />}
+          label="Promedio del Mes"
+          value={monthAvg !== null ? fmt(monthAvg, unit) : '—'}
+          sub={monthAvg !== null ? `${thisMonth.length} registro${thisMonth.length !== 1 ? 's' : ''} en ${monthName}` : 'Sin registros este mes'}
+          icon={<CalendarDays className="h-4.5 w-4.5" />}
           color="violet"
-          badge={!hasFullAvg ? 'Parcial' : null}
         />
       </div>
 
       {showSecondary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {monthAvg !== null && (
-            <StatCard
-              label="Promedio del Mes"
-              value={fmt(monthAvg, unit)}
-              sub={`${thisMonth.length} registro${thisMonth.length !== 1 ? 's' : ''} en ${monthName}`}
-              icon={<CalendarDays className="h-4.5 w-4.5" />}
-              color="violet"
-            />
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {bmi !== null && (
             <StatCard
               label="IMC"
