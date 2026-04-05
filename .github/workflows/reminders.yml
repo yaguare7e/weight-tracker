@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install firebase-admin
+        run: npm install --no-save firebase-admin
       - name: Send due reminders
         run: node scripts/send-reminders.mjs
         env:
