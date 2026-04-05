@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { X, Target, Ruler, Link2, Copy, Check } from 'lucide-react'
+import { X, Target, Ruler, Link2, Copy, Check, Bell, ChevronRight } from 'lucide-react'
 import { isFirebaseConfigured } from '../lib/firebase'
 
 const KG_TO_LBS = 2.20462
 
 export default function SettingsPanel({
   unit, goalKg, heightCm, onSaveGoal, onSaveHeight,
-  syncKey, onSaveSyncKey, onClose,
+  syncKey, onSaveSyncKey, onClose, onOpenReminders,
 }) {
   const [goalVal, setGoalVal] = useState(
     goalKg != null
@@ -65,6 +65,23 @@ export default function SettingsPanel({
         </div>
 
         <div className="space-y-6">
+
+          {/* ── Reminders ──────────────────────────────────────── */}
+          <button
+            onClick={() => { onClose(); onOpenReminders() }}
+            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+          >
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30">
+              <Bell className="h-4 w-4 text-blue-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Recordatorios</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Notificaciones para registrar tu peso</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0" />
+          </button>
+
+          <div className="border-t border-slate-100 dark:border-slate-700" />
 
           {/* ── Height ─────────────────────────────────────────── */}
           <div>

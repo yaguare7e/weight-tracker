@@ -6,16 +6,20 @@ import WeightChart from './components/WeightChart.jsx'
 import WeightHistory from './components/WeightHistory.jsx'
 import EmptyState from './components/EmptyState.jsx'
 import SettingsPanel from './components/SettingsPanel.jsx'
+import RemindersPanel from './components/RemindersPanel.jsx'
 import MonthlyChart from './components/MonthlyChart.jsx'
 import { useWeightData } from './hooks/useWeightData.js'
 import { useSettings } from './hooks/useSettings.js'
+import { useReminders } from './hooks/useReminders.js'
 import { isFirebaseConfigured } from './lib/firebase.js'
 
 export default function App() {
   const [unit, setUnit] = useState('kg')
-  const [showSettings, setShowSettings] = useState(false)
+  const [showSettings, setShowSettings]   = useState(false)
+  const [showReminders, setShowReminders] = useState(false)
   const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark, syncKey, setSyncKey } = useSettings()
   const { entries, loading, addEntry, removeEntry, updateEntry } = useWeightData(syncKey)
+  const { reminders, addReminder, updateReminder, removeReminder, permission, setPermission } = useReminders(syncKey)
 
   const hasData = entries.length > 0
 
@@ -75,6 +79,20 @@ export default function App() {
           syncKey={syncKey}
           onSaveSyncKey={setSyncKey}
           onClose={() => setShowSettings(false)}
+          onOpenReminders={() => setShowReminders(true)}
+        />
+      )}
+
+      {showReminders && (
+        <RemindersPanel
+          reminders={reminders}
+          onAdd={addReminder}
+          onUpdate={updateReminder}
+          onRemove={removeReminder}
+          permission={permission}
+          onPermissionChange={setPermission}
+          syncKey={syncKey}
+          onClose={() => setShowReminders(false)}
         />
       )}
     </div>

@@ -5,7 +5,14 @@ service cloud.firestore {
     match /users/{userId}/weights/{weightId} {
       allow read, write: if true;
     }
-    // Collection-group read — needed for backup script
+    // Per-user reminders and device tokens
+    match /users/{userId}/reminders/{reminderId} {
+      allow read, write: if true;
+    }
+    match /users/{userId}/devices/{deviceId} {
+      allow read, write: if true;
+    }
+    // Collection-group reads — needed for backup and reminder sender
     match /{path=**}/weights/{weightId} {
       allow read: if true;
     }
