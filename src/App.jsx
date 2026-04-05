@@ -13,8 +13,8 @@ import { isFirebaseConfigured } from './lib/firebase.js'
 export default function App() {
   const [unit, setUnit] = useState('kg')
   const [showSettings, setShowSettings] = useState(false)
-  const { entries, loading, addEntry, removeEntry, updateEntry } = useWeightData()
-  const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark } = useSettings()
+  const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark, syncKey, setSyncKey } = useSettings()
+  const { entries, loading, addEntry, removeEntry, updateEntry } = useWeightData(syncKey)
 
   const hasData = entries.length > 0
 
@@ -70,6 +70,8 @@ export default function App() {
           heightCm={heightCm}
           onSaveGoal={setGoalKg}
           onSaveHeight={setHeightCm}
+          syncKey={syncKey}
+          onSaveSyncKey={setSyncKey}
           onClose={() => setShowSettings(false)}
         />
       )}

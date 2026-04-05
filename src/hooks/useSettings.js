@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
 
-const GOAL_KEY   = 'wt_goal_v1'
-const HEIGHT_KEY = 'wt_height_v1'
-const DARK_KEY   = 'wt_dark_v1'
+const GOAL_KEY    = 'wt_goal_v1'
+const HEIGHT_KEY  = 'wt_height_v1'
+const DARK_KEY    = 'wt_dark_v1'
+const SYNC_KEY    = 'wt_sync_key_v1'
+
+function getOrCreateSyncKey() {
+  const existing = localStorage.getItem(SYNC_KEY)
+  if (existing) return existing
+  const newKey = crypto.randomUUID()
+  localStorage.setItem(SYNC_KEY, newKey)
+  return newKey
+}
 
 export function useSettings() {
   const [goalKg, setGoalKgRaw] = useState(() => {
@@ -16,6 +25,7 @@ export function useSettings() {
   const [dark, setDarkRaw] = useState(() =>
     localStorage.getItem(DARK_KEY) === 'true'
   )
+  const [syncKey, setSyncKeyRaw] = useState(() => getOrCreateSyncKey())
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
@@ -33,6 +43,10 @@ export function useSettings() {
     localStorage.setItem(DARK_KEY, String(val))
     setDarkRaw(val)
   }
+  const setSyncKey = (key) => {
+    localStorage.setItem(SYNC_KEY, key)
+    setSyncKeyRaw(key)
+  }
 
-  return { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark }
+  return { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark, syncKey, setSyncKey }
 }

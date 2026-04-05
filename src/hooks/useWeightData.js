@@ -3,8 +3,7 @@ import {
   collection, addDoc, deleteDoc, updateDoc, doc,
   onSnapshot, query, orderBy, serverTimestamp,
 } from 'firebase/firestore'
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
-import { db, auth, isFirebaseConfigured } from '../lib/firebase'
+import { db, isFirebaseConfigured } from '../lib/firebase'
 
 const LS_KEY = 'wt_entries_v2'
 
@@ -23,42 +22,21 @@ function sortEntries(arr) {
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────
-export function useWeightData() {
+// syncKey: the user's sync key used as Firestore path; null → localStorage
+export function useWeightData(syncKey) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
-  const [uid, setUid] = useState(null)
 
-  // Auth + localStorage init
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !syncKey) {
       setEntries(sortEntries(lsGet()))
       setLoading(false)
       return
     }
 
-    const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUid(user.uid)
-      } else {
-        try {
-          await signInAnonymously(auth)
-        } catch (err) {
-          console.error('[Firebase] Anonymous sign-in failed:', err)
-          setEntries(sortEntries(lsGet()))
-          setLoading(false)
-        }
-      }
-    })
-
-    return () => unsubAuth()
-  }, [])
-
-  // Firestore real-time subscription
-  useEffect(() => {
-    if (!isFirebaseConfigured || !uid) return
-
+    setLoading(true)
     const q = query(
-      collection(db, 'users', uid, 'weights'),
+      collection(db, 'users', syncKey, 'weights'),
       orderBy('date', 'desc'),
       orderBy('createdAt', 'desc')
     )
@@ -77,18 +55,17 @@ export function useWeightData() {
     )
 
     return () => unsub()
-  }, [uid])
+  }, [syncKey])
 
-  // ─── Add ────────────────────────────────────────────────────────────────
+  // ─── Add ──────────────────────────────────────────────────────────────────
   const addEntry = useCallback(async ({ weightKg, date }) => {
-    const now = new Date().toISOString()
     const entry = {
       weightKg: parseFloat(weightKg.toFixed(4)),
-      date,        // 'YYYY-MM-DD'
-      createdAt: now,
+      date,
+      createdAt: new Date().toISOString(),
     }
 
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !syncKey) {
       const data = lsGet()
       data.push({ ...entry, id: crypto.randomUUID() })
       lsSet(sortEntries(data))
@@ -96,26 +73,26 @@ export function useWeightData() {
       return
     }
 
-    await addDoc(collection(db, 'users', uid, 'weights'), {
+    await addDoc(collection(db, 'users', syncKey, 'weights'), {
       ...entry,
       serverTimestamp: serverTimestamp(),
     })
-  }, [uid])
+  }, [syncKey])
 
-  // ─── Delete ─────────────────────────────────────────────────────────────
+  // ─── Delete ───────────────────────────────────────────────────────────────
   const removeEntry = useCallback(async (id) => {
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !syncKey) {
       const data = sortEntries(lsGet().filter(e => e.id !== id))
       lsSet(data)
       setEntries(data)
       return
     }
-    await deleteDoc(doc(db, 'users', uid, 'weights', id))
-  }, [uid])
+    await deleteDoc(doc(db, 'users', syncKey, 'weights', id))
+  }, [syncKey])
 
-  // ─── Update ─────────────────────────────────────────────────────────────
+  // ─── Update ───────────────────────────────────────────────────────────────
   const updateEntry = useCallback(async ({ id, weightKg, date }) => {
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !syncKey) {
       const data = lsGet()
       const idx = data.findIndex(e => e.id === id)
       if (idx === -1) return
@@ -125,11 +102,11 @@ export function useWeightData() {
       setEntries(sorted)
       return
     }
-    await updateDoc(doc(db, 'users', uid, 'weights', id), {
+    await updateDoc(doc(db, 'users', syncKey, 'weights', id), {
       weightKg: parseFloat(weightKg.toFixed(4)),
       date,
     })
-  }, [uid])
+  }, [syncKey])
 
   return { entries, loading, addEntry, removeEntry, updateEntry }
 }
