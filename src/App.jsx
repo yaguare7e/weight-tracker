@@ -6,6 +6,7 @@ import WeightChart from './components/WeightChart.jsx'
 import WeightHistory from './components/WeightHistory.jsx'
 import EmptyState from './components/EmptyState.jsx'
 import SettingsPanel from './components/SettingsPanel.jsx'
+import MonthlyChart from './components/MonthlyChart.jsx'
 import { useWeightData } from './hooks/useWeightData.js'
 import { useSettings } from './hooks/useSettings.js'
 import { isFirebaseConfigured } from './lib/firebase.js'
@@ -51,6 +52,7 @@ export default function App() {
           <>
             <StatsCards entries={entries} unit={unit} goalKg={goalKg} heightCm={heightCm} />
             <WeightChart entries={entries} unit={unit} goalKg={goalKg} dark={dark} />
+            <MonthlyChart entries={entries} unit={unit} goalKg={goalKg} dark={dark} />
             <WeightHistory entries={entries} unit={unit} onDelete={removeEntry} onUpdate={updateEntry} />
           </>
         ) : (

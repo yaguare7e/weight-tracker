@@ -1,4 +1,4 @@
-import { Scale, Activity, TrendingDown, TrendingUp, Minus, BarChart3, Target, Heart } from 'lucide-react'
+import { Scale, Activity, TrendingDown, TrendingUp, Minus, BarChart3, Target, Heart, CalendarDays } from 'lucide-react'
 
 const KG_TO_LBS = 2.20462
 
@@ -33,6 +33,14 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
   const movAvg     = toUnit(avgKg, unit)
   const hasFullAvg = sorted.length >= 4
 
+  // Monthly average
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const thisMonth    = sorted.filter(e => e.date.startsWith(currentMonth))
+  const monthAvg     = thisMonth.length > 0
+    ? toUnit(thisMonth.reduce((s, e) => s + e.weightKg, 0) / thisMonth.length, unit)
+    : null
+  const monthName    = new Date().toLocaleDateString('es-ES', { month: 'long' })
+
   // BMI
   const bmi = heightCm ? current.weightKg / Math.pow(heightCm / 100, 2) : null
   const bmiCat   = !bmi ? '' : bmi < 18.5 ? 'Bajo peso' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Sobrepeso' : 'Obesidad'
@@ -43,7 +51,7 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
   const remaining = goalKg != null ? toUnit(current.weightKg - goalKg, unit) : null
   const isAtGoal  = remaining !== null && Math.abs(remaining) <= 0.1
 
-  const showSecondary = bmi !== null || goalKg !== null
+  const showSecondary = bmi !== null || goalKg !== null || monthAvg !== null
 
   return (
     <>
@@ -84,7 +92,16 @@ export default function StatsCards({ entries, unit, goalKg, heightCm }) {
       </div>
 
       {showSecondary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {monthAvg !== null && (
+            <StatCard
+              label="Promedio del Mes"
+              value={fmt(monthAvg, unit)}
+              sub={`${thisMonth.length} registro${thisMonth.length !== 1 ? 's' : ''} en ${monthName}`}
+              icon={<CalendarDays className="h-4.5 w-4.5" />}
+              color="violet"
+            />
+          )}
           {bmi !== null && (
             <StatCard
               label="IMC"
