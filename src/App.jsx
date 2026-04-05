@@ -5,25 +5,35 @@ import StatsCards from './components/StatsCards.jsx'
 import WeightChart from './components/WeightChart.jsx'
 import WeightHistory from './components/WeightHistory.jsx'
 import EmptyState from './components/EmptyState.jsx'
+import SettingsPanel from './components/SettingsPanel.jsx'
 import { useWeightData } from './hooks/useWeightData.js'
+import { useSettings } from './hooks/useSettings.js'
 import { isFirebaseConfigured } from './lib/firebase.js'
 
 export default function App() {
   const [unit, setUnit] = useState('kg')
-  const { entries, loading, addEntry, removeEntry } = useWeightData()
+  const [showSettings, setShowSettings] = useState(false)
+  const { entries, loading, addEntry, removeEntry, updateEntry } = useWeightData()
+  const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark } = useSettings()
 
   const hasData = entries.length > 0
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header unit={unit} onUnitChange={setUnit} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+      <Header
+        unit={unit}
+        onUnitChange={setUnit}
+        dark={dark}
+        onToggleDark={() => setDark(!dark)}
+        onOpenSettings={() => setShowSettings(true)}
+      />
 
       {/* Firebase mode indicator — only in dev */}
       {import.meta.env.DEV && (
         <div className={`text-center text-xs py-1 font-medium ${
           isFirebaseConfigured
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-amber-50 text-amber-700'
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+            : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
         }`}>
           {isFirebaseConfigured
             ? 'Firebase conectado — datos sincronizados en la nube'
@@ -39,9 +49,9 @@ export default function App() {
           <Spinner />
         ) : hasData ? (
           <>
-            <StatsCards entries={entries} unit={unit} />
-            <WeightChart entries={entries} unit={unit} />
-            <WeightHistory entries={entries} unit={unit} onDelete={removeEntry} />
+            <StatsCards entries={entries} unit={unit} goalKg={goalKg} heightCm={heightCm} />
+            <WeightChart entries={entries} unit={unit} goalKg={goalKg} dark={dark} />
+            <WeightHistory entries={entries} unit={unit} onDelete={removeEntry} onUpdate={updateEntry} />
           </>
         ) : (
           <EmptyState />
@@ -49,9 +59,20 @@ export default function App() {
 
       </main>
 
-      <footer className="text-center text-xs text-slate-300 pb-6">
+      <footer className="text-center text-xs text-slate-300 dark:text-slate-600 pb-6">
         WeightTracker — datos guardados {isFirebaseConfigured ? 'en Firebase' : 'localmente'}
       </footer>
+
+      {showSettings && (
+        <SettingsPanel
+          unit={unit}
+          goalKg={goalKg}
+          heightCm={heightCm}
+          onSaveGoal={setGoalKg}
+          onSaveHeight={setHeightCm}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   )
 }

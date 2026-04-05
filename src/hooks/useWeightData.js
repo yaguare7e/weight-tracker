@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  collection, addDoc, deleteDoc, doc,
+  collection, addDoc, deleteDoc, updateDoc, doc,
   onSnapshot, query, orderBy, serverTimestamp,
 } from 'firebase/firestore'
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
@@ -113,5 +113,23 @@ export function useWeightData() {
     await deleteDoc(doc(db, 'users', uid, 'weights', id))
   }, [uid])
 
-  return { entries, loading, addEntry, removeEntry }
+  // ─── Update ─────────────────────────────────────────────────────────────
+  const updateEntry = useCallback(async ({ id, weightKg, date }) => {
+    if (!isFirebaseConfigured) {
+      const data = lsGet()
+      const idx = data.findIndex(e => e.id === id)
+      if (idx === -1) return
+      data[idx] = { ...data[idx], weightKg: parseFloat(weightKg.toFixed(4)), date }
+      const sorted = sortEntries(data)
+      lsSet(sorted)
+      setEntries(sorted)
+      return
+    }
+    await updateDoc(doc(db, 'users', uid, 'weights', id), {
+      weightKg: parseFloat(weightKg.toFixed(4)),
+      date,
+    })
+  }, [uid])
+
+  return { entries, loading, addEntry, removeEntry, updateEntry }
 }

@@ -37,8 +37,8 @@ export default function WeightForm({ onAdd, unit }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-      <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2 text-sm">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 transition-colors duration-200">
+      <h2 className="font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2 text-sm">
         <span className="flex items-center justify-center w-5 h-5 bg-blue-600 rounded-full">
           <Plus className="h-3 w-3 text-white" />
         </span>
@@ -49,7 +49,7 @@ export default function WeightForm({ onAdd, unit }) {
 
         {/* Weight input */}
         <div className="flex-1">
-          <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
             Peso ({unit})
           </label>
           <div className="relative">
@@ -60,11 +60,13 @@ export default function WeightForm({ onAdd, unit }) {
               value={weight}
               onChange={(e) => { setWeight(e.target.value); setError('') }}
               placeholder={unit === 'kg' ? '70.5' : '155.0'}
-              className="w-full px-3 py-2.5 pr-12 border border-slate-200 rounded-xl text-slate-900
-                         placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500
-                         focus:border-transparent transition-all text-sm"
+              className="w-full px-3 py-2.5 pr-12 border border-slate-200 dark:border-slate-600 rounded-xl
+                         text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
+                         placeholder:text-slate-300 dark:placeholder:text-slate-500
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         transition-all text-sm"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-300 dark:text-slate-500">
               {unit}
             </span>
           </div>
@@ -72,7 +74,7 @@ export default function WeightForm({ onAdd, unit }) {
 
         {/* Date input */}
         <div className="sm:w-44">
-          <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
             Fecha
           </label>
           <input
@@ -80,9 +82,10 @@ export default function WeightForm({ onAdd, unit }) {
             value={date}
             max={todayISO()}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-slate-900
+            className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl
+                       text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700
                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                       transition-all text-sm"
+                       transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
           />
         </div>
 
