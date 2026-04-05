@@ -51,7 +51,7 @@ export default function WeightForm({ onAdd, unit }) {
         <div className="flex gap-3">
 
           {/* Weight input */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
               Peso ({unit})
             </label>
@@ -76,7 +76,7 @@ export default function WeightForm({ onAdd, unit }) {
           </div>
 
           {/* Date input */}
-          <div className="w-36 sm:w-44 flex-shrink-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
               Fecha
             </label>
