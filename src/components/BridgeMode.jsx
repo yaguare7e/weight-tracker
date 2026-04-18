@@ -83,8 +83,6 @@ function UnsupportedView({ onClose }) {
 
 export default function BridgeMode({ onAdd, onClose }) {
   const [log, setLog] = useState([])
-  const [autoStarted, setAutoStarted] = useState(false)
-  const startScanRef = useRef(null)
 
   const { status, liveWeight, error, startScan, stopScan, isSupported } = useBluetoothScale({
     onStabilizedWeight: async (kg) => {
@@ -97,8 +95,6 @@ export default function BridgeMode({ onAdd, onClose }) {
       }
     },
   })
-
-  startScanRef.current = startScan
 
   // Wake Lock to keep screen on
   useEffect(() => {
@@ -123,13 +119,6 @@ export default function BridgeMode({ onAdd, onClose }) {
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [isSupported])
-
-  // Auto-start scan on mount
-  useEffect(() => {
-    if (!isSupported || autoStarted) return
-    setAutoStarted(true)
-    startScanRef.current?.()
-  }, [autoStarted, isSupported])
 
   const handleClose = () => {
     stopScan()
@@ -192,15 +181,18 @@ export default function BridgeMode({ onAdd, onClose }) {
 
         {status === 'idle' && (
           <>
-            <div className="mb-6 w-24 h-24 rounded-full bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
-              <WifiOff className="h-10 w-10 text-slate-500" />
+            <div className="mb-6 w-24 h-24 rounded-full bg-blue-500/10 border-2 border-blue-500/50 flex items-center justify-center">
+              <Bluetooth className="h-10 w-10 text-blue-400" />
             </div>
-            <p className="text-lg font-medium text-slate-400">Escaneo detenido</p>
+            <p className="text-lg font-medium text-slate-300 mb-2">Modo puente</p>
+            <p className="text-sm text-slate-400 mb-6 text-center max-w-xs">
+              Subite a la balanza para que se encienda, despues toca el boton
+            </p>
             <button
               onClick={startScan}
-              className="mt-4 px-6 py-2.5 bg-blue-600 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="px-8 py-3 bg-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all"
             >
-              Reiniciar escaneo
+              Conectar balanza
             </button>
           </>
         )}

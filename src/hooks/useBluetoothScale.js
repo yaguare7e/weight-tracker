@@ -154,7 +154,12 @@ export function useBluetoothScale({ onStabilizedWeight }) {
       setStatus('scanning')
 
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [WEIGHT_SCALE_UUID] }],
+        filters: [
+          { namePrefix: 'MI SCALE' },
+          { namePrefix: 'MIBFS' },
+          { services: [WEIGHT_SCALE_UUID] },
+        ],
+        optionalServices: [WEIGHT_SCALE_UUID],
       })
       deviceRef.current = device
 
@@ -242,12 +247,12 @@ export function useBluetoothScale({ onStabilizedWeight }) {
     }
   }, [cleanup, handleStabilized])
 
-  // ─── Public start method: picks best available approach ─────────────────
+  // ─── Public start method: GATT first (more reliable), scan as fallback ──
   const start = useCallback(async () => {
-    if (hasLEScan()) {
-      await startScan()
-    } else if (hasGATT()) {
+    if (hasGATT()) {
       await startGATT()
+    } else if (hasLEScan()) {
+      await startScan()
     } else {
       setError('Bluetooth no disponible en este navegador.')
     }
