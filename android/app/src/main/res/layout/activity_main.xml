@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#0F172A">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Weight Bridge"
+        android:textSize="24sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Puente BLE para Mi Smart Scale 2"
+        android:textSize="14sp"
+        android:textColor="#94A3B8"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SYNC KEY"
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:letterSpacing="0.1"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/syncKeyInput"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Pega tu sync key aqui"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#475569"
+        android:background="#1E293B"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textSize="14sp"
+        android:singleLine="true"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/toggleButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="Iniciar"
+        android:textSize="16sp"
+        android:textAllCaps="false"
+        android:backgroundTint="#2563EB"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Detenido"
+        android:textSize="16sp"
+        android:textColor="#94A3B8"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="REGISTROS"
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:letterSpacing="0.1"
+        android:layout_marginBottom="8dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#1E293B"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/logText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sin registros"
+            android:textSize="13sp"
+            android:textColor="#CBD5E1"
+            android:fontFamily="monospace" />
+    </ScrollView>
+</LinearLayout>
