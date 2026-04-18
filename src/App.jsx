@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Header from './components/Header.jsx'
 import WeightForm from './components/WeightForm.jsx'
+import BridgeMode from './components/BridgeMode.jsx'
 import StatsCards from './components/StatsCards.jsx'
 import WeightChart from './components/WeightChart.jsx'
 import WeightHistory from './components/WeightHistory.jsx'
@@ -16,6 +17,7 @@ import { isFirebaseConfigured } from './lib/firebase.js'
 export default function App() {
   const [showSettings, setShowSettings]   = useState(false)
   const [showReminders, setShowReminders] = useState(false)
+  const [showBridge, setShowBridge]       = useState(false)
   const { goalKg, setGoalKg, heightCm, setHeightCm, dark, setDark, syncKey, setSyncKey } = useSettings()
   const { entries, loading, addEntry, removeEntry, updateEntry } = useWeightData(syncKey)
   const { reminders, addReminder, updateReminder, removeReminder, permission, setPermission } = useReminders(syncKey)
@@ -45,7 +47,7 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 pt-6 space-y-5">
 
-        <WeightForm onAdd={addEntry} />
+        <WeightForm onAdd={addEntry} onOpenBridge={() => setShowBridge(true)} />
 
         {loading ? (
           <Spinner />
@@ -76,6 +78,13 @@ export default function App() {
           onSaveSyncKey={setSyncKey}
           onClose={() => setShowSettings(false)}
           onOpenReminders={() => setShowReminders(true)}
+        />
+      )}
+
+      {showBridge && (
+        <BridgeMode
+          onAdd={addEntry}
+          onClose={() => setShowBridge(false)}
         />
       )}
 

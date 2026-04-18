@@ -1,13 +1,21 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Bluetooth } from 'lucide-react'
+import { useBluetoothScale } from '../hooks/useBluetoothScale.js'
+import BluetoothScaleButton from './BluetoothScaleButton.jsx'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 
-export default function WeightForm({ onAdd }) {
+export default function WeightForm({ onAdd, onOpenBridge }) {
   const [weight, setWeight] = useState('')
   const [date, setDate] = useState(todayISO())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { status, liveWeight, error: bleError, startScan, stopScan, isSupported } = useBluetoothScale({
+    onStabilizedWeight: (kg) => {
+      setWeight(kg.toFixed(1))
+      setError('')
+    },
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -48,6 +56,28 @@ export default function WeightForm({ onAdd }) {
         </span>
         Registrar nuevo peso
       </h2>
+
+      <BluetoothScaleButton
+        status={status}
+        liveWeight={liveWeight}
+        error={bleError}
+        onStart={startScan}
+        onStop={stopScan}
+        isSupported={isSupported}
+      />
+
+      {isSupported && onOpenBridge && (
+        <button
+          type="button"
+          onClick={onOpenBridge}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-3
+                     text-xs font-medium text-slate-400 dark:text-slate-500
+                     hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+        >
+          <Bluetooth className="h-3.5 w-3.5" />
+          Modo puente (Android como receptor)
+        </button>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
 
