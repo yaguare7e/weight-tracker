@@ -1,16 +1,92 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bluetooth, X, Wifi, WifiOff } from 'lucide-react'
+import { Bluetooth, X, Wifi, WifiOff, Smartphone, ExternalLink } from 'lucide-react'
 import { useBluetoothScale } from '../hooks/useBluetoothScale.js'
 
 const todayISO = () => new Date().toISOString().split('T')[0]
 const timeStr = (d) => d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+function UnsupportedView({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900 text-white flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+        <div className="flex items-center gap-2">
+          <Bluetooth className="h-5 w-5 text-blue-400" />
+          <span className="font-semibold text-sm">Balanza Bluetooth</span>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="mb-6 w-24 h-24 rounded-full bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
+          <Smartphone className="h-10 w-10 text-slate-400" />
+        </div>
+
+        <h3 className="text-lg font-semibold mb-4 text-center">
+          Bluetooth no disponible en este navegador
+        </h3>
+
+        <div className="max-w-sm space-y-4 text-sm text-slate-300">
+          <p className="text-center text-slate-400">
+            Para conectar tu balanza Xiaomi necesitas un celular Android con Chrome.
+            Podes usar un Android viejo como puente dedicado.
+          </p>
+
+          <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+            <p className="font-semibold text-white text-xs uppercase tracking-wide">Como configurar el Android</p>
+
+            <div className="space-y-2.5">
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                <span>Abri <strong className="text-white">Chrome</strong> en el Android</span>
+              </div>
+
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                <div>
+                  Entra a <span className="text-blue-400 font-mono text-xs">chrome://flags</span> y activa <strong className="text-white">Experimental Web Platform features</strong>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                <span>Reinicia Chrome</span>
+              </div>
+
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+                <span>Abri esta misma app y toca <strong className="text-white">"Conectar balanza Bluetooth"</strong></span>
+              </div>
+
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">5</span>
+                <span>Asegurate de usar la <strong className="text-white">misma sync key</strong> que en tu iPhone</span>
+              </div>
+
+              <div className="flex gap-3">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">6</span>
+                <span>Activa el modo puente y deja el Android enchufado cerca de la balanza</span>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-slate-500">
+            Los pesos se sincronizan automaticamente por Firebase.
+            Tu iPhone los muestra al instante.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function BridgeMode({ onAdd, onClose }) {
   const [log, setLog] = useState([])
   const [autoStarted, setAutoStarted] = useState(false)
   const startScanRef = useRef(null)
 
-  const { status, liveWeight, error, startScan, stopScan } = useBluetoothScale({
+  const { status, liveWeight, error, startScan, stopScan, isSupported } = useBluetoothScale({
     onStabilizedWeight: async (kg) => {
       try {
         await onAdd({ weightKg: kg, date: todayISO() })
@@ -26,6 +102,7 @@ export default function BridgeMode({ onAdd, onClose }) {
 
   // Wake Lock to keep screen on
   useEffect(() => {
+    if (!isSupported) return
     let wakeLock = null
     const acquire = async () => {
       try {
@@ -45,19 +122,22 @@ export default function BridgeMode({ onAdd, onClose }) {
       wakeLock?.release()
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [])
+  }, [isSupported])
 
-  // Auto-start scan on mount (needs to be triggered by the button click that opened this)
+  // Auto-start scan on mount
   useEffect(() => {
-    if (!autoStarted) {
-      setAutoStarted(true)
-      startScanRef.current?.()
-    }
-  }, [autoStarted])
+    if (!isSupported || autoStarted) return
+    setAutoStarted(true)
+    startScanRef.current?.()
+  }, [autoStarted, isSupported])
 
   const handleClose = () => {
     stopScan()
     onClose()
+  }
+
+  if (!isSupported) {
+    return <UnsupportedView onClose={onClose} />
   }
 
   return (

@@ -66,16 +66,18 @@ export default function WeightForm({ onAdd, onOpenBridge }) {
         isSupported={isSupported}
       />
 
-      {isSupported && onOpenBridge && (
+      {onOpenBridge && (
         <button
           type="button"
           onClick={onOpenBridge}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-3
+                     border border-dashed border-slate-200 dark:border-slate-600 rounded-xl
                      text-xs font-medium text-slate-400 dark:text-slate-500
-                     hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                     hover:text-blue-500 hover:border-blue-400 dark:hover:text-blue-400
+                     dark:hover:border-blue-500 transition-colors"
         >
           <Bluetooth className="h-3.5 w-3.5" />
-          Modo puente (Android como receptor)
+          Conectar balanza Bluetooth
         </button>
       )}
 
