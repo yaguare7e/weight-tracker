@@ -45,9 +45,35 @@ class BleScaleService : Service() {
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val record = result.scanRecord ?: return
-            val serviceData = record.getServiceData(WEIGHT_SCALE_SERVICE) ?: return
+            val deviceName = result.device?.name ?: record.deviceName ?: ""
 
-            if (serviceData.size < 13) return
+            // Only process known scale devices
+            val isScale = deviceName.contains("MI SCALE", ignoreCase = true) ||
+                    deviceName.contains("MIBFS", ignoreCase = true)
+            if (!isScale && deviceName.isNotEmpty()) return
+            // If deviceName is empty, still try to check service data (some devices don't broadcast name)
+
+            if (isScale) Log.d(TAG, "Scale found: '$deviceName' rssi=${result.rssi}")
+
+            // Try to get service data from Weight Scale UUID
+            var serviceData = record.getServiceData(WEIGHT_SCALE_SERVICE)
+
+            // If no service data via UUID, try to find it in the raw scan record bytes
+            if (serviceData == null) {
+                val bytes = record.bytes
+                if (bytes != null) {
+                    serviceData = parseServiceDataFromRaw(bytes)
+                }
+            }
+
+            if (serviceData == null || serviceData.size < 13) {
+                if (deviceName.contains("MI SCALE", ignoreCase = true) || deviceName.contains("MIBFS", ignoreCase = true)) {
+                    Log.d(TAG, "Scale found but no valid service data (${serviceData?.size ?: 0} bytes)")
+                }
+                return
+            }
+
+            Log.d(TAG, "Service data (${serviceData.size} bytes): ${serviceData.joinToString(" ") { "%02X".format(it) }}")
 
             val ctrl0 = serviceData[0].toInt() and 0xFF
             val ctrl1 = serviceData[1].toInt() and 0xFF
@@ -111,6 +137,31 @@ class BleScaleService : Service() {
         }
     }
 
+    // Parse 0x181D service data from raw advertisement bytes (AD structures)
+    private fun parseServiceDataFromRaw(raw: ByteArray): ByteArray? {
+        var i = 0
+        while (i < raw.size - 1) {
+            val len = raw[i].toInt() and 0xFF
+            if (len == 0) break
+            if (i + len >= raw.size) break
+
+            val type = raw[i + 1].toInt() and 0xFF
+            // 0x16 = Service Data - 16-bit UUID
+            if (type == 0x16 && len >= 3) {
+                val uuid16 = ((raw[i + 3].toInt() and 0xFF) shl 8) or (raw[i + 2].toInt() and 0xFF)
+                if (uuid16 == 0x181D) {
+                    // Service data starts after the 2-byte UUID
+                    val dataLen = len - 3
+                    if (dataLen > 0) {
+                        return raw.copyOfRange(i + 4, i + 1 + len)
+                    }
+                }
+            }
+            i += len + 1
+        }
+        return null
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -153,19 +204,14 @@ class BleScaleService : Service() {
         }
 
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .setReportDelay(0)
             .build()
 
-        // Scan for devices advertising the Weight Scale service data
-        val filters = listOf(
-            ScanFilter.Builder()
-                .setServiceData(WEIGHT_SCALE_SERVICE, byteArrayOf())
-                .build()
-        )
-
         try {
-            scanner?.startScan(filters, settings, scanCallback)
+            // Scan without filters — most reliable on older Android
+            // The callback checks device name and service data
+            scanner?.startScan(null, settings, scanCallback)
             updateNotification("Esperando balanza...")
             Log.d(TAG, "BLE scan started")
         } catch (e: SecurityException) {
