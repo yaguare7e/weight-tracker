@@ -42,17 +42,24 @@ class BleScaleService : Service() {
         private val CCC_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val DEBOUNCE_MS = 30_000L
         private const val SCAN_RESTART_DELAY_MS = 5_000L
+        private const val STABLE_DELAY_MS = 3_000L  // Wait 3s of same weight to consider stable
+        private const val MIN_WEIGHT_KG = 20.0       // Ignore weights below 20 kg
     }
 
     private var scanner: BluetoothLeScanner? = null
     private var gatt: BluetoothGatt? = null
     private var syncKey: String = ""
-    private var lastWeight: Double = 0.0
+    private var lastSavedWeight: Double = 0.0
     private var lastSaveTime: Long = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var isConnecting = false
     private val handler = Handler(Looper.getMainLooper())
     private var deviceCount = 0
+
+    // Stabilization tracking
+    private var pendingWeight: Double = 0.0
+    private var pendingWeightTime: Long = 0
+    private var stableCheckRunnable: Runnable? = null
 
     // GATT callback — handles connection, service discovery, and weight notifications
     private val gattCallback = object : BluetoothGattCallback() {
@@ -140,45 +147,69 @@ class BleScaleService : Service() {
         val rawWeight = (data[1].toInt() and 0xFF) or ((data[2].toInt() and 0xFF) shl 8)
 
         val weightKg = if (isImperial) {
-            // Imperial: resolution 0.01 lb, convert to kg
             (rawWeight / 100.0) * 0.453592
         } else {
-            // Metric: resolution 0.005 kg (per BLE SIG spec)
             rawWeight * 0.005
         }
 
         val rounded = Math.round(weightKg * 10.0) / 10.0
-        if (rounded <= 0) return
+        if (rounded < MIN_WEIGHT_KG) return
 
-        // Check if measurement is stable (bit 2 of flags in some implementations)
-        // For Mi Scale, we save all readings and debounce
         updateNotification("Midiendo: ${rounded} kg")
+        Log.d(TAG, "Reading: ${rounded} kg")
 
         val now = System.currentTimeMillis()
-        val isDuplicate = Math.abs(lastWeight - rounded) < 0.15 &&
+
+        // If weight changed significantly, reset stabilization timer
+        if (Math.abs(pendingWeight - rounded) >= 0.2) {
+            pendingWeight = rounded
+            pendingWeightTime = now
+            // Cancel previous stable check
+            stableCheckRunnable?.let { handler.removeCallbacks(it) }
+            // Schedule a new stable check
+            val runnable = Runnable { checkStableAndSave() }
+            stableCheckRunnable = runnable
+            handler.postDelayed(runnable, STABLE_DELAY_MS)
+        } else {
+            // Weight is similar — keep the pending time (first time we saw this weight)
+            // Update to latest reading
+            pendingWeight = rounded
+        }
+    }
+
+    private fun checkStableAndSave() {
+        val weight = pendingWeight
+        if (weight < MIN_WEIGHT_KG) return
+
+        val now = System.currentTimeMillis()
+        val isDuplicate = Math.abs(lastSavedWeight - weight) < 0.3 &&
                 (now - lastSaveTime) < DEBOUNCE_MS
 
-        if (isDuplicate) return
+        if (isDuplicate) {
+            Log.d(TAG, "Duplicate weight $weight kg — skipping")
+            updateNotification("Ultimo peso: ${weight} kg (ya guardado)")
+            return
+        }
 
-        lastWeight = rounded
+        lastSavedWeight = weight
         lastSaveTime = now
 
-        Log.d(TAG, "Weight: ${rounded} kg — saving to Firestore")
-        updateNotification("Guardando: ${rounded} kg")
+        Log.d(TAG, "Stable weight: ${weight} kg — saving to Firestore")
+        updateNotification("Guardando: ${weight} kg")
 
         thread {
-            val ok = FirestoreClient.saveWeight(syncKey, rounded)
+            val ok = FirestoreClient.saveWeight(syncKey, weight)
             val intent = Intent(ACTION_WEIGHT_RECEIVED).apply {
-                putExtra(EXTRA_WEIGHT, rounded)
+                putExtra(EXTRA_WEIGHT, weight)
                 putExtra("success", ok)
                 setPackage(packageName)
             }
             sendBroadcast(intent)
 
             if (ok) {
-                updateNotification("Ultimo peso: ${rounded} kg")
+                updateNotification("Ultimo peso: ${weight} kg")
             } else {
-                updateNotification("Error al guardar ${rounded} kg")
+                updateNotification("Error al guardar ${weight} kg")
             }
         }
     }
