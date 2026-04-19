@@ -5,18 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
-import android.os.ParcelUuid
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import java.util.UUID
@@ -32,102 +37,177 @@ class BleScaleService : Service() {
         const val ACTION_WEIGHT_RECEIVED = "com.weighttracker.bridge.WEIGHT_RECEIVED"
         const val EXTRA_WEIGHT = "weight"
 
-        private val WEIGHT_SCALE_SERVICE = ParcelUuid(UUID.fromString("0000181d-0000-1000-8000-00805f9b34fb"))
+        private val WEIGHT_SCALE_SERVICE_UUID = UUID.fromString("0000181d-0000-1000-8000-00805f9b34fb")
+        private val WEIGHT_MEASUREMENT_CHAR_UUID = UUID.fromString("00002a9d-0000-1000-8000-00805f9b34fb")
+        private val CCC_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val DEBOUNCE_MS = 30_000L
+        private const val SCAN_RESTART_DELAY_MS = 5_000L
     }
 
     private var scanner: BluetoothLeScanner? = null
+    private var gatt: BluetoothGatt? = null
     private var syncKey: String = ""
     private var lastWeight: Double = 0.0
     private var lastSaveTime: Long = 0
     private var wakeLock: PowerManager.WakeLock? = null
+    private var isConnecting = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var deviceCount = 0
 
+    // GATT callback — handles connection, service discovery, and weight notifications
+    private val gattCallback = object : BluetoothGattCallback() {
+
+        override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    Log.d(TAG, "GATT connected to ${g.device.address}")
+                    updateNotification("Conectado — buscando servicios...")
+                    try {
+                        g.discoverServices()
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "Permission denied for discoverServices", e)
+                    }
+                }
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.d(TAG, "GATT disconnected")
+                    isConnecting = false
+                    try { g.close() } catch (_: Exception) {}
+                    gatt = null
+                    updateNotification("Desconectado — reescaneando...")
+                    // Restart scan to find the scale again
+                    handler.postDelayed({ startBleScan() }, SCAN_RESTART_DELAY_MS)
+                }
+            }
+        }
+
+        override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "Service discovery failed: $status")
+                updateNotification("Error descubriendo servicios")
+                return
+            }
+
+            val service = g.getService(WEIGHT_SCALE_SERVICE_UUID)
+            if (service == null) {
+                Log.e(TAG, "Weight Scale service not found")
+                updateNotification("Servicio de balanza no encontrado")
+                return
+            }
+
+            val characteristic = service.getCharacteristic(WEIGHT_MEASUREMENT_CHAR_UUID)
+            if (characteristic == null) {
+                Log.e(TAG, "Weight Measurement characteristic not found")
+                updateNotification("Caracteristica de peso no encontrada")
+                return
+            }
+
+            // Enable notifications
+            try {
+                g.setCharacteristicNotification(characteristic, true)
+                val descriptor = characteristic.getDescriptor(CCC_DESCRIPTOR_UUID)
+                if (descriptor != null) {
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                    g.writeDescriptor(descriptor)
+                    Log.d(TAG, "Subscribed to weight notifications")
+                    updateNotification("Esperando peso en balanza...")
+                } else {
+                    Log.e(TAG, "CCC descriptor not found")
+                    updateNotification("Error suscribiendo a notificaciones")
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for notifications", e)
+            }
+        }
+
+        override fun onCharacteristicChanged(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+            if (characteristic.uuid != WEIGHT_MEASUREMENT_CHAR_UUID) return
+
+            val data = characteristic.value ?: return
+            Log.d(TAG, "Weight data (${data.size} bytes): ${data.joinToString(" ") { "%02X".format(it) }}")
+
+            parseWeightMeasurement(data)
+        }
+    }
+
+    // Parse BLE SIG Weight Measurement (0x2A9D) characteristic
+    private fun parseWeightMeasurement(data: ByteArray) {
+        if (data.size < 3) return
+
+        val flags = data[0].toInt() and 0xFF
+        val isImperial = (flags and 0x01) != 0
+
+        // Weight is at bytes 1-2, little-endian
+        val rawWeight = (data[1].toInt() and 0xFF) or ((data[2].toInt() and 0xFF) shl 8)
+
+        val weightKg = if (isImperial) {
+            // Imperial: resolution 0.01 lb, convert to kg
+            (rawWeight / 100.0) * 0.453592
+        } else {
+            // Metric: resolution 0.005 kg (per BLE SIG spec)
+            rawWeight * 0.005
+        }
+
+        val rounded = Math.round(weightKg * 10.0) / 10.0
+        if (rounded <= 0) return
+
+        // Check if measurement is stable (bit 2 of flags in some implementations)
+        // For Mi Scale, we save all readings and debounce
+        updateNotification("Midiendo: ${rounded} kg")
+
+        val now = System.currentTimeMillis()
+        val isDuplicate = Math.abs(lastWeight - rounded) < 0.15 &&
+                (now - lastSaveTime) < DEBOUNCE_MS
+
+        if (isDuplicate) return
+
+        lastWeight = rounded
+        lastSaveTime = now
+
+        Log.d(TAG, "Weight: ${rounded} kg — saving to Firestore")
+        updateNotification("Guardando: ${rounded} kg")
+
+        thread {
+            val ok = FirestoreClient.saveWeight(syncKey, rounded)
+            val intent = Intent(ACTION_WEIGHT_RECEIVED).apply {
+                putExtra(EXTRA_WEIGHT, rounded)
+                putExtra("success", ok)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+
+            if (ok) {
+                updateNotification("Ultimo peso: ${rounded} kg")
+            } else {
+                updateNotification("Error al guardar ${rounded} kg")
+            }
+        }
+    }
+
+    // Scan callback — finds the scale and connects via GATT
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            val record = result.scanRecord ?: return
-            val deviceName = result.device?.name ?: record.deviceName ?: ""
+            val deviceName = result.device?.name ?: result.scanRecord?.deviceName ?: ""
+            if (deviceName.isNotEmpty()) {
+                deviceCount++
+                if (deviceCount % 20 == 1) {
+                    Log.d(TAG, "Scanned $deviceCount devices so far, latest: '$deviceName'")
+                }
+            }
 
-            // Only process known scale devices
             val isScale = deviceName.contains("MI SCALE", ignoreCase = true) ||
-                    deviceName.contains("MIBFS", ignoreCase = true)
-            if (!isScale && deviceName.isNotEmpty()) return
-            // If deviceName is empty, still try to check service data (some devices don't broadcast name)
+                    deviceName.contains("MIBFS", ignoreCase = true) ||
+                    deviceName.contains("MIBCS", ignoreCase = true)
 
-            if (isScale) Log.d(TAG, "Scale found: '$deviceName' rssi=${result.rssi}")
+            if (!isScale) return
 
-            // Try to get service data from Weight Scale UUID
-            var serviceData = record.getServiceData(WEIGHT_SCALE_SERVICE)
+            Log.d(TAG, "Found scale: '$deviceName' addr=${result.device.address}")
+            updateNotification("Balanza encontrada — conectando...")
 
-            // If no service data via UUID, try to find it in the raw scan record bytes
-            if (serviceData == null) {
-                val bytes = record.bytes
-                if (bytes != null) {
-                    serviceData = parseServiceDataFromRaw(bytes)
-                }
-            }
-
-            if (serviceData == null || serviceData.size < 13) {
-                if (deviceName.contains("MI SCALE", ignoreCase = true) || deviceName.contains("MIBFS", ignoreCase = true)) {
-                    Log.d(TAG, "Scale found but no valid service data (${serviceData?.size ?: 0} bytes)")
-                }
-                return
-            }
-
-            Log.d(TAG, "Service data (${serviceData.size} bytes): ${serviceData.joinToString(" ") { "%02X".format(it) }}")
-
-            val ctrl0 = serviceData[0].toInt() and 0xFF
-            val ctrl1 = serviceData[1].toInt() and 0xFF
-
-            val isImperial = (ctrl0 and 0x01) != 0
-            val isCatty = (ctrl0 and 0x10) != 0
-            val isStabilized = (ctrl1 and 0x20) != 0
-            val isRemoved = (ctrl1 and 0x80) != 0
-
-            if (isRemoved) return
-
-            val rawWeight = (serviceData[11].toInt() and 0xFF) or
-                    ((serviceData[12].toInt() and 0xFF) shl 8)
-
-            val weightKg = when {
-                isImperial -> (rawWeight / 100.0) * 0.453592
-                isCatty -> (rawWeight / 100.0) * 0.5
-                else -> rawWeight / 200.0
-            }
-
-            val rounded = Math.round(weightKg * 10.0) / 10.0
-            if (rounded <= 0) return
-
-            if (!isStabilized) {
-                updateNotification("Midiendo: ${rounded} kg")
-                return
-            }
-
-            val now = System.currentTimeMillis()
-            val isDuplicate = Math.abs(lastWeight - rounded) < 0.15 &&
-                    (now - lastSaveTime) < DEBOUNCE_MS
-
-            if (isDuplicate) return
-
-            lastWeight = rounded
-            lastSaveTime = now
-
-            Log.d(TAG, "Stable weight: ${rounded} kg — saving to Firestore")
-            updateNotification("Guardado: ${rounded} kg")
-
-            thread {
-                val ok = FirestoreClient.saveWeight(syncKey, rounded)
-                val intent = Intent(ACTION_WEIGHT_RECEIVED).apply {
-                    putExtra(EXTRA_WEIGHT, rounded)
-                    putExtra("success", ok)
-                    setPackage(packageName)
-                }
-                sendBroadcast(intent)
-
-                if (ok) {
-                    updateNotification("Ultimo peso: ${rounded} kg")
-                } else {
-                    updateNotification("Error al guardar ${rounded} kg")
-                }
+            // Stop scanning and connect via GATT
+            if (!isConnecting) {
+                isConnecting = true
+                stopBleScan()
+                connectGatt(result.device)
             }
         }
 
@@ -137,29 +217,15 @@ class BleScaleService : Service() {
         }
     }
 
-    // Parse 0x181D service data from raw advertisement bytes (AD structures)
-    private fun parseServiceDataFromRaw(raw: ByteArray): ByteArray? {
-        var i = 0
-        while (i < raw.size - 1) {
-            val len = raw[i].toInt() and 0xFF
-            if (len == 0) break
-            if (i + len >= raw.size) break
-
-            val type = raw[i + 1].toInt() and 0xFF
-            // 0x16 = Service Data - 16-bit UUID
-            if (type == 0x16 && len >= 3) {
-                val uuid16 = ((raw[i + 3].toInt() and 0xFF) shl 8) or (raw[i + 2].toInt() and 0xFF)
-                if (uuid16 == 0x181D) {
-                    // Service data starts after the 2-byte UUID
-                    val dataLen = len - 3
-                    if (dataLen > 0) {
-                        return raw.copyOfRange(i + 4, i + 1 + len)
-                    }
-                }
-            }
-            i += len + 1
+    private fun connectGatt(device: BluetoothDevice) {
+        try {
+            gatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            Log.d(TAG, "Connecting GATT to ${device.address}...")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied for GATT connect", e)
+            updateNotification("Sin permisos de Bluetooth")
+            isConnecting = false
         }
-        return null
     }
 
     override fun onCreate() {
@@ -182,7 +248,9 @@ class BleScaleService : Service() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         stopBleScan()
+        disconnectGatt()
         releaseWakeLock()
         super.onDestroy()
     }
@@ -209,11 +277,10 @@ class BleScaleService : Service() {
             .build()
 
         try {
-            // Scan without filters — most reliable on older Android
-            // The callback checks device name and service data
+            deviceCount = 0
             scanner?.startScan(null, settings, scanCallback)
-            updateNotification("Esperando balanza...")
-            Log.d(TAG, "BLE scan started")
+            updateNotification("Buscando balanza...")
+            Log.d(TAG, "BLE scan started (no filters)")
         } catch (e: SecurityException) {
             updateNotification("Sin permisos de Bluetooth")
             Log.e(TAG, "BLE permission denied", e)
@@ -225,6 +292,15 @@ class BleScaleService : Service() {
             scanner?.stopScan(scanCallback)
         } catch (_: Exception) {}
         scanner = null
+    }
+
+    private fun disconnectGatt() {
+        try {
+            gatt?.disconnect()
+            gatt?.close()
+        } catch (_: Exception) {}
+        gatt = null
+        isConnecting = false
     }
 
     private fun acquireWakeLock() {
