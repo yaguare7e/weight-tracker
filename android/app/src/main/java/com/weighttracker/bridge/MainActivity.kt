@@ -7,8 +7,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -69,6 +72,21 @@ class MainActivity : AppCompatActivity() {
         isRunning = prefs.getBoolean(KEY_RUNNING, false)
         updateUI()
 
+        // Auto-restart service if it was running but process was killed
+        if (isRunning) {
+            val syncKey = prefs.getString(KEY_SYNC_KEY, "") ?: ""
+            if (syncKey.isNotEmpty()) {
+                val intent = Intent(this, BleScaleService::class.java).apply {
+                    putExtra(BleScaleService.EXTRA_SYNC_KEY, syncKey)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        }
+
         toggleButton.setOnClickListener {
             if (isRunning) {
                 stopBridge()
@@ -101,6 +119,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!checkPermissions()) return
+
+        requestBatteryOptimizationExemption()
 
         prefs.edit()
             .putString(KEY_SYNC_KEY, syncKey)
@@ -143,6 +163,13 @@ class MainActivity : AppCompatActivity() {
     private fun checkPermissions(): Boolean {
         val needed = mutableListOf<String>()
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -165,6 +192,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         return true
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        }
     }
 
     override fun onRequestPermissionsResult(

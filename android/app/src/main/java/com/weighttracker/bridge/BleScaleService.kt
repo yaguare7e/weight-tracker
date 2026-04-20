@@ -16,8 +16,12 @@ import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.app.AlarmManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -55,11 +59,36 @@ class BleScaleService : Service() {
     private var isConnecting = false
     private val handler = Handler(Looper.getMainLooper())
     private var deviceCount = 0
+    private var isScreenOn = true
 
     // Stabilization tracking
     private var pendingWeight: Double = 0.0
     private var pendingWeightTime: Long = 0
     private var stableCheckRunnable: Runnable? = null
+
+    // Screen state receiver — switch scan mode for battery efficiency
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    isScreenOn = false
+                    Log.d(TAG, "Screen off — switching to low power scan")
+                    if (scanner != null && !isConnecting) {
+                        stopBleScan()
+                        handler.postDelayed({ startBleScan() }, 1000)
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    isScreenOn = true
+                    Log.d(TAG, "Screen on — switching to low latency scan")
+                    if (scanner != null && !isConnecting) {
+                        stopBleScan()
+                        handler.postDelayed({ startBleScan() }, 1000)
+                    }
+                }
+            }
+        }
+    }
 
     // GATT callback — handles connection, service discovery, and weight notifications
     private val gattCallback = object : BluetoothGattCallback() {
@@ -266,12 +295,36 @@ class BleScaleService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         syncKey = intent?.getStringExtra(EXTRA_SYNC_KEY) ?: ""
+
+        // If service is restarted by system (START_STICKY), intent may be null.
+        // Fall back to SharedPreferences.
         if (syncKey.isEmpty()) {
+            val prefs = getSharedPreferences("weight_bridge", MODE_PRIVATE)
+            syncKey = prefs.getString("sync_key", "") ?: ""
+        }
+
+        if (syncKey.isEmpty()) {
+            Log.w(TAG, "No sync key available, stopping service")
             stopSelf()
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification("Iniciando escaneo BLE..."))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification("Iniciando escaneo BLE..."),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification("Iniciando escaneo BLE..."))
+        }
+
+        val screenFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        registerReceiver(screenReceiver, screenFilter)
+
         acquireWakeLock()
         startBleScan()
 
@@ -280,10 +333,25 @@ class BleScaleService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         stopBleScan()
         disconnectGatt()
         releaseWakeLock()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "Task removed — scheduling restart")
+        val restartIntent = Intent(applicationContext, BleScaleService::class.java).apply {
+            putExtra(EXTRA_SYNC_KEY, syncKey)
+        }
+        val pi = PendingIntent.getService(
+            this, 1, restartIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarm = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarm.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 5000, pi)
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -302,8 +370,14 @@ class BleScaleService : Service() {
             return
         }
 
+        val scanMode = if (isScreenOn) {
+            ScanSettings.SCAN_MODE_LOW_LATENCY
+        } else {
+            ScanSettings.SCAN_MODE_LOW_POWER
+        }
+
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setScanMode(scanMode)
             .setReportDelay(0)
             .build()
 
