@@ -36,7 +36,9 @@ class BleScaleService : Service() {
     companion object {
         const val TAG = "BleScaleService"
         const val CHANNEL_ID = "weight_bridge"
+        const val CHANNEL_WEIGHT_ID = "weight_saved"
         const val NOTIFICATION_ID = 1
+        private const val WEIGHT_NOTIFICATION_ID = 2
         const val EXTRA_SYNC_KEY = "sync_key"
         const val ACTION_WEIGHT_RECEIVED = "com.weighttracker.bridge.WEIGHT_RECEIVED"
         const val EXTRA_WEIGHT = "weight"
@@ -237,6 +239,7 @@ class BleScaleService : Service() {
 
             if (ok) {
                 updateNotification("Ultimo peso: ${weight} kg")
+                showWeightNotification(weight)
             } else {
                 updateNotification("Error al guardar ${weight} kg")
             }
@@ -422,15 +425,26 @@ class BleScaleService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val nm = getSystemService(NotificationManager::class.java)
+
+            val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Weight Bridge",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Escaneo BLE activo para la balanza"
             }
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+            nm.createNotificationChannel(serviceChannel)
+
+            val weightChannel = NotificationChannel(
+                CHANNEL_WEIGHT_ID,
+                "Peso registrado",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificación cuando se registra un nuevo peso"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(weightChannel)
         }
     }
 
@@ -464,5 +478,36 @@ class BleScaleService : Service() {
     private fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIFICATION_ID, buildNotification(text))
+    }
+
+    private fun showWeightNotification(weight: Double) {
+        val pi = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_WEIGHT_ID)
+                .setContentTitle("Peso registrado")
+                .setContentText("${weight} kg guardado correctamente")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("Peso registrado")
+                .setContentText("${weight} kg guardado correctamente")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_ALL)
+                .build()
+        }
+
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.notify(WEIGHT_NOTIFICATION_ID, notification)
     }
 }
